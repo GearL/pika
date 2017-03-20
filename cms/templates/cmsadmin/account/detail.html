@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Title</title>
+</head>
+    <body>
+        <form method="POST" action="{{ url_for('account.account_detail', id=detail.id)  }}" >
+            {{ detail.loginname }}<br/>
+            {{ form.nickname.label }}{{ form.nickname(value=detail.nickname) }}<br/>
+            {{ form.email.label }}{{ form.email(value=detail.email) }}<br/>
+            {{ form.qq.label }}{{ form.qq(value=detail.qq) }}<br/>
+            {{ form.phone.label }}{{ form.phone(value=detail.phone) }}<br/>
+            <input type="submit" value="submit">
+        </form>
+    </body>
+</html>

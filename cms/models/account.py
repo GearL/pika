@@ -7,85 +7,12 @@ from uuid import uuid4
 from flask_rbac import RoleMixin, UserMixin
 from flask.ext.sqlalchemy import BaseQuery
 
-from cms.models import db
+from cms.models import db, ModelMixin
 
-
-class ModelMixin(object):
-
-    @classmethod
-    def paginate(self, page, per_page=20, error_out=True, order_by=None,
-                 filters=[], with_deleted=False):
-        """A proxy method to return `per_page` items from page `page`.
-        If there is `state` attribute in class and `with_deleted` is `False`
-        it will filter out which was `state != 'deleted'`.
-        If items were not found it will abort with 404.
-        Example::
-            User(BaseModel):
-                id = BaseModel.Column(BaseModel.Integer, primary_key=True)
-                name = BaseModel.Column(BaseModel.String(20))
-            User.paginate(page=1, per_page=3)
-        Returns an :class:`Pagination` object.
-        :param page: Page to show.
-        :param per_page: Sepcify how many items in a page.
-        :param error_out: If `False`, disable abort with 404.
-        :param filters: A list that the query wile filter.
-        :param with_deleted: If True, it will not filter `state != 'deleted'`
-        """
-        query = self.query
-
-        if hasattr(self, 'state') and not with_deleted:
-            query = query.filter(self.state != 'deleted')
-
-        for filte in filters:
-            query = query.filter(filte)
-
-        if not order_by is None:
-            query = query.order_by(order_by)
-
-        pagination = query.paginate(
-            page=page,
-            per_page=per_page,
-            error_out=error_out
-        )
-
-        return pagination
-
-    def save(self, commit=True):
-        """Proxy method of saving object to database"""
-        db.session.add(self)
-        if commit:
-            db.session.commit()
-
-    def edit(self, form_data, commit=True):
-        """Edit object from `form_data`.
-        :param form_data: Data to save in object.
-        :param commit: If `commit` is `True`
-                       it will commit to database immediately
-                       after editing object.
-        """
-        for key, value in form_data.iteritems():
-            setattr(self, key, value)
-
-        db.session.add(self)
-
-        if commit:
-            db.session.commit()
-
-    def delete(self, commit=True):
-        """Delete object from database.
-        :param commit: Commit to database immediately
-        """
-        if hasattr(self, 'state'):
-            self.state = 'deleted'
-        else:
-            db.session.delete(self)
-
-        if commit:
-            db.session.commit()
 
 class UserQuery(BaseQuery):
-    def authenticate(self, username, raw_passwd):
-        user = self.filter(User.username == username).first()
+    def authenticate(self, loginname, raw_passwd):
+        user = self.filter(User.loginname == loginname).first()
         if user and user.check_password(raw_passwd):
             return user
         return None
@@ -116,6 +43,8 @@ class Role(ModelMixin, RoleMixin, db.Model):
         secondaryjoin=(id == roles_parents.c.parent_id),
         backref=db.backref('children', lazy='dynamic')
     )
+    users = db.relationship('User', secondary=users_roles,
+                            backref=db.backref('roles', lazy='dynamic'))
 
     def __init__(self, name):
         RoleMixin.__init__(self)
@@ -161,8 +90,8 @@ class User(ModelMixin, UserMixin, db.Model):
         self.salt = uuid4().hex
 
         if 'loginname' in kwargs:
-            username = kwargs.pop('username')
-            self.username = username.lower()
+            loginname = kwargs.pop('loginname')
+            self.loginname = loginname.lower()
 
         if 'passwd' in kwargs:
             raw_passwd = kwargs.pop('passwd')
@@ -175,7 +104,7 @@ class User(ModelMixin, UserMixin, db.Model):
         db.Model.__init__(self, **kwargs)
 
     def __unicode__(self):
-        return self.username
+        return self.loginname
 
     def __repr__(self):
         return "<User: %s>" % self.loginname
@@ -188,11 +117,38 @@ class User(ModelMixin, UserMixin, db.Model):
         _hashed_password = self._hash_password(self.salt, raw_passwd)
         return self.hashed_password == _hashed_password
 
+    def has_email(self):
+        return not self.email is None
+
+    def check_email(self, email):
+        return self.email == email
+
     def is_active(self):
         return self.state == 'normal'
 
+    def is_anonymous(self):
+        return self.nickname is None
+
     def get_id(self):
         return self.id
+
+    def get_role(self):
+        if self.roles[0].name == u"superuser":
+            return u"超级管理员"
+        elif self.roles[0].name == u"manager":
+            return u"管理员"
+
+    def jsonify(self):
+        return {
+            'id' : self.id,
+            'loginname' : self.loginname,
+            'nickname' : self.nickname,
+            'email' : self.email,
+            'qq' : self.qq,
+            'phone' : self.phone,
+            'create_date' : self.create_date,
+            'state' : self.state
+        }
 
     def is_authenticated(self):
         return self.state in ('normal', 'unactivated')
@@ -210,6 +166,9 @@ class User(ModelMixin, UserMixin, db.Model):
         gravatar_url = URL_PATTERN % (md5(self.email.lower()).hexdigest(),
                                       urllib.urlencode({'s': str(size)}))
         return gravatar_url
+
+    def set_avatar(self, avatar_url):
+        self.avatar = avatar_url
 
     @staticmethod
     def _hash_password(salt, password):

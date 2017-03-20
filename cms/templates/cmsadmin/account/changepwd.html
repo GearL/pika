@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>个人信息</title>
+	<meta name="renderer" content="webkit">	
+	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">	
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">	
+	<meta name="apple-mobile-web-app-status-bar-style" content="black">	
+	<meta name="apple-mobile-web-app-capable" content="yes">	
+	<meta name="format-detection" content="telephone=no">	
+	<link rel="stylesheet" type="text/css" href="/static/common/layui/css/layui.css" media="all">
+	<link rel="stylesheet" type="text/css" href="/static/common/bootstrap/css/bootstrap.css" media="all">
+	<link rel="stylesheet" type="text/css" href="/static/common/global.css" media="all">
+	<link rel="stylesheet" type="text/css" href="/static/css/personal.css" media="all">
+</head>
+<body>
+<section class="layui-larry-box">
+	<div class="larry-personal">
+		<header class="larry-personal-tit">
+			<span>修改密码</span>
+		</header><!-- /header -->
+		<div class="larry-personal-body clearfix changepwd">
+			<form class="layui-form col-lg-4" method="post" id="changepasswdform" action="{{ url_for('account.changepasswd') }}">
+                {{ form.hidden_tag() }}
+			 	<div class="layui-form-item">
+					<label class="layui-form-label">用户名</label>
+					<div class="layui-input-block">  
+					  	<input type="text" name="loginname"  autocomplete="off"  class="layui-input layui-disabled" value="{{ current_user.loginname }}" disabled="disabled" >
+					</div>
+				</div>
+				<div class="layui-form-item">
+					<label class="layui-form-label">旧密码</label>
+					<div class="layui-input-block">  
+					  	<input type="password" name="passwd"  autocomplete="off"  class="layui-input" value="" placeholder="请输入旧密码">
+					</div>
+                    <label class="layui-form-label1" name="passwd_error"></label>
+				</div>
+				<div class="layui-form-item">
+					<label class="layui-form-label">新密码</label>
+					<div class="layui-input-block">  
+					  	<input type="password" name="newpasswd"  autocomplete="off"  class="layui-input" value="" placeholder="请输入新密码">
+					</div>
+                    <label class="layui-form-label1" name="newpasswd_error"></label>
+				</div>
+				<div class="layui-form-item">
+					<label class="layui-form-label">确认密码</label>
+					<div class="layui-input-block">
+					  	<input type="password" name="confirm_passwd"  autocomplete="off"  class="layui-input" value="" placeholder="请输入确认新密码">
+					</div>
+                    <label class="layui-form-label1" name="confirm_error"></label>
+				</div>
+				<div class="layui-form-item change-submit">
+					<div class="layui-input-block">
+						<a class="layui-btn" name="submit" lay-submit>立即提交</a>
+						<button type="reset" class="layui-btn layui-btn-primary">重置</button>
+					</div>
+				</div>
+			</form>
+		</div>
+	</div>
+</section>
+<script type="text/javascript" src="/static/common/layui/layui.js"></script>
+<script type="text/javascript">
+	layui.use(['jquery', 'layer'], function(){
+	    var $ = layui.jquery;
+	    var layer = layui.layer;
+        $("a[name='submit']").bind('click', function () {
+            $.ajax({
+                url: "{{ url_for('account.changepasswd') }}",
+                data: $("#changepasswdform").serialize(),
+                type: 'POST',
+                error:function () {
+                    layer.msg("服务器内部出现问题或者您断网了。请稍后再试");
+                },
+                success: function (res) {
+                    if (res.success) {
+                        layer.msg(res.message);
+                        setTimeout(function () {
+                            window.location.href = res.redirect_url;
+                        },2000);
+                    }
+                    else if(!res.success){
+                        if(res.errors){
+                            var msg = res.message;
+                            if(msg.confirm_passwd)
+                                $("label[name='confirm_error']").html(msg.confirm_passwd);
+                            if(msg.passwd)
+                                $("label[name='passwd_error']").html(msg.passwd);
+                            if(msg.newpasswd)
+                                $("label[name='newpasswd_error']").html(msg.newpasswd);
+                        }
+                        else
+                            layer.msg(res.message);
+                    }
+                }
+            })
+        });
+
+    });
+</script>
+</body>
+</html>

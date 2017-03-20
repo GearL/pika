@@ -1,7 +1,9 @@
-from cms.models import db
+from datetime import datetime
+
+from cms.models import db, ModelMixin
 
 
-class Category(db.model):
+class Category(ModelMixin,db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(32))
     urlstr = db.Column(db.String(16))
@@ -21,7 +23,7 @@ class Category(db.model):
             db.session.commit()
 
 
-class Article(db.Model):
+class Article(ModelMixin, db.Model):
 
     __tablename__ = 'article'
 
@@ -30,9 +32,11 @@ class Article(db.Model):
     description = db.Column(db.Text)
     create_date = db.Column(db.DateTime, default=datetime.utcnow)
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
+    deleted = db.Column(db.BOOLEAN, default=False)
 
     def delete(self, commit=True):
-        db.session.delete(self)
+        self.deleted = True
+        db.session.add(self)
         if commit:
             db.session.commit()
 
